@@ -48,6 +48,8 @@ from legged_gym.utils.math import quat_apply_yaw, wrap_to_pi, torch_rand_sqrt_fl
 from legged_gym.utils.helpers import class_to_dict
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg
 
+from isaacgymenvs.utils import torch_jit_utils
+
 from . import rewards
 
 class HRP5P(BaseTask):
@@ -316,16 +318,33 @@ class HRP5P(BaseTask):
         """
         clock1 = torch.sin(2 * torch.pi * self.phases / self._period)
         clock2 = torch.cos(2 * torch.pi * self.phases / self._period)
-        self.obs_buf = torch.cat((clock1.unsqueeze(1),
-                                  clock2.unsqueeze(1),
-                                  self.base_lin_vel * self.obs_scales.lin_vel,
-                                  self.base_ang_vel  * self.obs_scales.ang_vel,
-                                  self.projected_gravity,
-                                  self.commands[:, :3] * self.commands_scale,
-                                  (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
-                                  self.dof_vel * self.obs_scales.dof_vel,
-                                  self.actions
+        mode = torch.tensor([0, 1, 0], dtype=torch.float, device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        mode_ref = torch.zeros((self.num_envs, 1), dtype=torch.float, device=self.device)
+        ext_state = torch.cat((clock1.unsqueeze(1), clock2.unsqueeze(1), mode, mode_ref), dim=-1)
+
+        root_euler = torch_jit_utils.get_euler_xyz(self.base_quat)
+        robot_state = torch.cat((root_euler[0].unsqueeze(1),
+                                 root_euler[1].unsqueeze(1),
+                                 self.base_ang_vel  * self.obs_scales.ang_vel,
+                                 self.dof_pos * self.obs_scales.dof_pos,
+                                 torch.zeros((self.num_envs, 12), dtype=torch.float, device=self.device),
+                                 self.dof_vel * self.obs_scales.dof_vel,
+                                 torch.zeros((self.num_envs, 12), dtype=torch.float, device=self.device),
+                                 torch.zeros((self.num_envs, 12), dtype=torch.float, device=self.device),
+                                 self.torques * self.obs_scales.dof_torques,
         ),dim=-1)
+
+        self.obs_buf = torch.cat((robot_state, ext_state), dim=-1)
+
+        # robot_state = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
+        #                        self.base_ang_vel  * self.obs_scales.ang_vel,
+        #                        self.projected_gravity,
+        #                        (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
+        #                        self.dof_vel * self.obs_scales.dof_vel,
+        #                        self.actions
+        # ),dim=-1)
+        # self.obs_buf = torch.cat((robot_state, ext_state), dim=-1)
+
         # add noise if needed
         if self.add_noise:
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
