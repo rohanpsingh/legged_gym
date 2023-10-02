@@ -91,7 +91,7 @@ class HRP5P(BaseTask):
         torch_zeros = lambda : torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
         self.episode_sums = {"lin_vel_xy": torch_zeros(), "lin_vel_z": torch_zeros(), "ang_vel_z": torch_zeros(), "ang_vel_xy": torch_zeros(),
                              "orient": torch_zeros(), "torques": torch_zeros(), "joint_acc": torch_zeros(), "base_height": torch_zeros(),
-                             "air_time": torch_zeros(), "collision": torch_zeros(), "stumble": torch_zeros(), "action_rate": torch_zeros(), "hip": torch_zeros(),
+                             "collision": torch_zeros(), "stumble": torch_zeros(), "action_rate": torch_zeros(), "posture": torch_zeros(),
                              "clock_frc": torch_zeros(), "clock_vel": torch_zeros()}
 
         total_duration = 1.0
@@ -202,7 +202,6 @@ class HRP5P(BaseTask):
         # reset buffers
         self.last_actions[env_ids] = 0.
         self.last_dof_vel[env_ids] = 0.
-        self.feet_air_time[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
         # fill extras
@@ -261,6 +260,9 @@ class HRP5P(BaseTask):
         # base height penalty
         rew_base_height = torch.square(self.root_states[:, 2] - 0.79) * self.rew_scales["base_height"] # TODO add target base height to cfg
 
+        # cosmetic penalty
+        rew_posture = torch.sum(torch.abs(self.dof_pos[:, :] - self.default_dof_pos[:, :]), dim=1)* self.rew_scales["posture"]
+
         # torque penalty
         rew_torque = torch.sum(torch.square(self.torques), dim=1) * self.rew_scales["torque"]
 
@@ -274,24 +276,9 @@ class HRP5P(BaseTask):
         # action rate penalty
         rew_action_rate = torch.sum(torch.square(self.last_actions - self.actions), dim=1) * self.rew_scales["action_rate"]
 
-        # air time reward
-        # contact = torch.norm(contact_forces[:, feet_indices, :], dim=2) > 1.
-        contact = self.contact_forces[:, self.feet_indices, 2] > 1.
-        first_contact = (self.feet_air_time > 0.) * contact
-        self.feet_air_time += self.dt
-        rew_airTime = torch.sum((self.feet_air_time - 0.5) * first_contact, dim=1) * self.rew_scales["air_time"] # reward only on first contact with the ground
-        rew_airTime *= torch.norm(self.commands[:, :2], dim=1) > 0.1 #no reward for zero command
-        self.feet_air_time *= ~contact
-
-        # cosmetic penalty for hip motion
-        rew_hip = torch.sum(torch.abs(self.dof_pos[:, [0, 3, 6, 9]] - self.default_dof_pos[:, [0, 3, 6, 9]]), dim=1)* self.rew_scales["hip"]
-
         # total reward
-        # self.rew_buf = rew_lin_vel_xy + rew_ang_vel_z + rew_lin_vel_z + rew_ang_vel_xy + rew_orient + rew_base_height +\
-        #             rew_torque + rew_joint_acc + rew_action_rate + rew_airTime + rew_hip + rew_stumble + clock_reward
         self.rew_buf = clock_reward_frc + clock_reward_vel + rew_lin_vel_z + rew_ang_vel_xy + rew_orient + rew_base_height +\
-            rew_torque + rew_joint_acc + rew_action_rate + rew_hip + rew_stumble
-        #self.rew_buf = torch.clip(self.rew_buf, min=0., max=None)
+            rew_torque + rew_joint_acc + rew_action_rate + rew_posture + rew_stumble
 
         # add termination reward
         self.rew_buf += self.rew_scales["termination"] * self.reset_buf * ~self.time_out_buf
@@ -306,9 +293,8 @@ class HRP5P(BaseTask):
         self.episode_sums["joint_acc"] += rew_joint_acc
         self.episode_sums["stumble"] += rew_stumble
         self.episode_sums["action_rate"] += rew_action_rate
-        self.episode_sums["air_time"] += rew_airTime
         self.episode_sums["base_height"] += rew_base_height
-        self.episode_sums["hip"] += rew_hip
+        self.episode_sums["posture"] += rew_posture
         self.episode_sums["clock_frc"] += clock_reward_frc
         self.episode_sums["clock_vel"] += clock_reward_vel
 
@@ -624,7 +610,6 @@ class HRP5P(BaseTask):
         self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
         self.commands = torch.zeros(self.num_envs, self.cfg.commands.num_commands, dtype=torch.float, device=self.device, requires_grad=False) # x vel, y vel, yaw vel, heading
         self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel], device=self.device, requires_grad=False,) # TODO change this
-        self.feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float, device=self.device, requires_grad=False)
         self.last_contacts = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device, requires_grad=False)
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
