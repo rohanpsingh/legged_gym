@@ -91,7 +91,7 @@ class HRP5P(BaseTask):
         torch_zeros = lambda : torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
         self.episode_sums = {"lin_vel_xy": torch_zeros(), "lin_vel_z": torch_zeros(), "ang_vel_z": torch_zeros(), "ang_vel_xy": torch_zeros(),
                              "orient": torch_zeros(), "torques": torch_zeros(), "joint_acc": torch_zeros(), "base_height": torch_zeros(),
-                             "collision": torch_zeros(), "stumble": torch_zeros(), "action_rate": torch_zeros(), "posture": torch_zeros(),
+                             "collision": torch_zeros(), "action_rate": torch_zeros(), "posture": torch_zeros(),
                              "clock_frc": torch_zeros(), "clock_vel": torch_zeros()}
 
         total_duration = 1.0
@@ -269,16 +269,12 @@ class HRP5P(BaseTask):
         # joint acc penalty
         rew_joint_acc = torch.sum(torch.square(self.last_dof_vel - self.dof_vel), dim=1) * self.rew_scales["joint_acc"]
 
-        # stumbling penalty
-        stumble = (torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) > 5.) * (torch.abs(self.contact_forces[:, self.feet_indices, 2]) < 1.)
-        rew_stumble = torch.sum(stumble, dim=1) * self.rew_scales["stumble"]
-
         # action rate penalty
         rew_action_rate = torch.sum(torch.square(self.last_actions - self.actions), dim=1) * self.rew_scales["action_rate"]
 
         # total reward
         self.rew_buf = clock_reward_frc + clock_reward_vel + rew_lin_vel_z + rew_ang_vel_xy + rew_orient + rew_base_height +\
-            rew_torque + rew_joint_acc + rew_action_rate + rew_posture + rew_stumble
+            rew_torque + rew_joint_acc + rew_action_rate + rew_posture
 
         # add termination reward
         self.rew_buf += self.rew_scales["termination"] * self.reset_buf * ~self.time_out_buf
@@ -291,7 +287,6 @@ class HRP5P(BaseTask):
         self.episode_sums["orient"] += rew_orient
         self.episode_sums["torques"] += rew_torque
         self.episode_sums["joint_acc"] += rew_joint_acc
-        self.episode_sums["stumble"] += rew_stumble
         self.episode_sums["action_rate"] += rew_action_rate
         self.episode_sums["base_height"] += rew_base_height
         self.episode_sums["posture"] += rew_posture

@@ -106,7 +106,6 @@ class HRP5PCfg(LeggedRobotCfg):
             joint_acc = -0.0005 # -0.0025
             base_height = -5.0 #5
             collision = -0.25 
-            stumble = -0. #-2.0
             action_rate = -0.01
             posture = -0. #25
 
