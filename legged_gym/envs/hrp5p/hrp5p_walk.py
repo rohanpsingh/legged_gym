@@ -91,7 +91,7 @@ class HRP5P(BaseTask):
         torch_zeros = lambda : torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
         self.episode_sums = {"lin_vel_xy": torch_zeros(), "lin_vel_z": torch_zeros(), "ang_vel_z": torch_zeros(), "ang_vel_xy": torch_zeros(),
                              "orient": torch_zeros(), "torques": torch_zeros(), "joint_acc": torch_zeros(), "base_height": torch_zeros(),
-                             "collision": torch_zeros(), "action_rate": torch_zeros(), "posture": torch_zeros(),
+                             "action_rate": torch_zeros(), "posture": torch_zeros(),
                              "clock_frc": torch_zeros(), "clock_vel": torch_zeros()}
 
         total_duration = 1.0
@@ -244,24 +244,31 @@ class HRP5P(BaseTask):
 
         self.rew_scales = class_to_dict(self.cfg.rewards.scales)
 
-        # velocity tracking reward
-        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
-        ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])
-        rew_lin_vel_xy = torch.exp(-lin_vel_error/0.25) * self.rew_scales["lin_vel_xy"]
-        rew_ang_vel_z = torch.exp(-ang_vel_error/0.25) * self.rew_scales["ang_vel_z"]
+        # linear velocity tracking
+        self.commands[:, 0] = 1.
+        self.commands[:, 1] = 0
+        lin_vel_error = torch.norm(self.commands[:, :2] - self.base_lin_vel[:, :2], dim=1)
+        rew_lin_vel_xy = torch.exp(-2*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
+
+        # angular velocity tracking
+        ang_vel_error = torch.norm(self.base_ang_vel[:, 2])
+        rew_ang_vel_z = torch.exp(-4*torch.square(ang_vel_error)) * self.rew_scales["ang_vel_z"]
 
         # other base velocity penalties
         rew_lin_vel_z = torch.square(self.base_lin_vel[:, 2]) * self.rew_scales["lin_vel_z"]
+
         rew_ang_vel_xy = torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1) * self.rew_scales["ang_vel_xy"]
 
         # orientation penalty
         rew_orient = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1) * self.rew_scales["orient"]
 
         # base height penalty
-        rew_base_height = torch.square(self.root_states[:, 2] - 0.79) * self.rew_scales["base_height"] # TODO add target base height to cfg
+        height_error = torch.norm(self.root_states[:, 2] - self.cfg.rewards.base_height_target)
+        rew_base_height = torch.exp(-0.5*torch.square(height_error)) * self.rew_scales["base_height"]
 
         # cosmetic penalty
-        rew_posture = torch.sum(torch.abs(self.dof_pos[:, :] - self.default_dof_pos[:, :]), dim=1)* self.rew_scales["posture"]
+        posture_error = torch.norm(self.dof_pos[:, :] - self.default_dof_pos[:, :], dim=1)
+        rew_posture = torch.exp(-0.5*torch.square(posture_error)) * self.rew_scales["posture"]
 
         # torque penalty
         rew_torque = torch.sum(torch.square(self.torques), dim=1) * self.rew_scales["torque"]
