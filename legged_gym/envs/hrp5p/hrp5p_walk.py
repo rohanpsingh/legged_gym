@@ -89,7 +89,7 @@ class HRP5P(BaseTask):
 
         # reward episode sums
         torch_zeros = lambda : torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
-        self.episode_sums = {"lin_vel_xy": torch_zeros(), "lin_vel_z": torch_zeros(), "ang_vel_z": torch_zeros(), "ang_vel_xy": torch_zeros(),
+        self.episode_sums = {"lin_vel_xy": torch_zeros(), "ang_vel_z": torch_zeros(),
                              "orient": torch_zeros(), "torques": torch_zeros(), "joint_acc": torch_zeros(), "base_height": torch_zeros(),
                              "action_rate": torch_zeros(), "posture": torch_zeros(),
                              "clock_frc": torch_zeros(), "clock_vel": torch_zeros()}
@@ -254,11 +254,6 @@ class HRP5P(BaseTask):
         ang_vel_error = torch.norm(self.base_ang_vel[:, 2])
         rew_ang_vel_z = torch.exp(-4*torch.square(ang_vel_error)) * self.rew_scales["ang_vel_z"]
 
-        # other base velocity penalties
-        rew_lin_vel_z = torch.square(self.base_lin_vel[:, 2]) * self.rew_scales["lin_vel_z"]
-
-        rew_ang_vel_xy = torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1) * self.rew_scales["ang_vel_xy"]
-
         # orientation penalty
         rew_orient = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1) * self.rew_scales["orient"]
 
@@ -280,7 +275,7 @@ class HRP5P(BaseTask):
         rew_action_rate = torch.sum(torch.square(self.last_actions - self.actions), dim=1) * self.rew_scales["action_rate"]
 
         # total reward
-        self.rew_buf = clock_reward_frc + clock_reward_vel + rew_lin_vel_z + rew_ang_vel_xy + rew_orient + rew_base_height +\
+        self.rew_buf = clock_reward_frc + clock_reward_vel + rew_orient + rew_base_height +\
             rew_torque + rew_joint_acc + rew_action_rate + rew_posture
 
         # add termination reward
@@ -289,8 +284,6 @@ class HRP5P(BaseTask):
         # log episode reward sums
         self.episode_sums["lin_vel_xy"] += rew_lin_vel_xy
         self.episode_sums["ang_vel_z"] += rew_ang_vel_z
-        self.episode_sums["lin_vel_z"] += rew_lin_vel_z
-        self.episode_sums["ang_vel_xy"] += rew_ang_vel_xy
         self.episode_sums["orient"] += rew_orient
         self.episode_sums["torques"] += rew_torque
         self.episode_sums["joint_acc"] += rew_joint_acc

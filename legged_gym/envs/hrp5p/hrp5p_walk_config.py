@@ -98,14 +98,12 @@ class HRP5PCfg(LeggedRobotCfg):
         class scales:
             termination = 0.0
             lin_vel_xy = 1.
-            lin_vel_z = 0
-            ang_vel_xy = 0
             ang_vel_z = 0
             orient = 0
-            torque = -0.000001
+            torque = -0.0000005
             joint_acc = 0
             base_height = 0.2
-            action_rate = -0.01
+            action_rate = -0.001
             posture = 0.2
 
     class normalization(LeggedRobotCfg.normalization):
