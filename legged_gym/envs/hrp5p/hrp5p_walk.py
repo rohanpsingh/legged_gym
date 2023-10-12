@@ -251,15 +251,15 @@ class HRP5P(BaseTask):
         rew_lin_vel_xy = torch.exp(-2*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
 
         # angular velocity tracking
-        ang_vel_error = torch.norm(self.base_ang_vel[:, 2])
+        ang_vel_error = torch.norm(self.base_ang_vel[:, 2].unsqueeze(-1), dim=1)
         rew_ang_vel_z = torch.exp(-4*torch.square(ang_vel_error)) * self.rew_scales["ang_vel_z"]
 
         # orientation penalty
         rew_orient = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1) * self.rew_scales["orient"]
 
         # base height penalty
-        height_error = torch.norm(self.root_states[:, 2] - self.cfg.rewards.base_height_target)
-        rew_base_height = torch.exp(-0.5*torch.square(height_error)) * self.rew_scales["base_height"]
+        height_error = torch.norm(self.root_states[:, 2].unsqueeze(-1) - self.cfg.rewards.base_height_target, dim=1)
+        rew_base_height = torch.exp(-0.1*torch.square(height_error)) * self.rew_scales["base_height"]
 
         # cosmetic penalty
         posture_error = torch.norm(self.dof_pos[:, :] - self.default_dof_pos[:, :], dim=1)
@@ -277,9 +277,6 @@ class HRP5P(BaseTask):
         # total reward
         self.rew_buf = clock_reward_frc + clock_reward_vel + rew_orient + rew_base_height +\
             rew_torque + rew_joint_acc + rew_action_rate + rew_posture
-
-        # add termination reward
-        self.rew_buf += self.rew_scales["termination"] * self.reset_buf * ~self.time_out_buf
 
         # log episode reward sums
         self.episode_sums["lin_vel_xy"] += rew_lin_vel_xy
