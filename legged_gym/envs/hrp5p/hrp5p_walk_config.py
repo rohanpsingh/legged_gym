@@ -99,10 +99,10 @@ class HRP5PCfg(LeggedRobotCfg):
             lin_vel_xy = 1.
             ang_vel_z = 1
             orient = 0
-            torque = -5e-7
+            torque = 0.2
             joint_acc = 0
             base_height = 0.2
-            action_rate = -1e-4
+            action_rate = 0.2
             posture = 0.2
 
     class normalization(LeggedRobotCfg.normalization):

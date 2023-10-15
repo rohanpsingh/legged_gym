@@ -266,13 +266,15 @@ class HRP5P(BaseTask):
         rew_posture = torch.exp(-0.5*torch.square(posture_error)) * self.rew_scales["posture"]
 
         # torque penalty
-        rew_torque = torch.sum(torch.square(self.torques), dim=1) * self.rew_scales["torque"]
+        torque_error = torch.norm(self.torques, dim=1)
+        rew_torque = torch.exp(-1e-5*torch.square(torque_error)) * self.rew_scales["torque"]
 
         # joint acc penalty
         rew_joint_acc = torch.sum(torch.square(self.last_dof_vel - self.dof_vel), dim=1) * self.rew_scales["joint_acc"]
 
         # action rate penalty
-        rew_action_rate = torch.sum(torch.square(self.last_actions - self.actions), dim=1) * self.rew_scales["action_rate"]
+        action_rate_error = torch.norm(self.last_actions - self.actions, dim=1)
+        rew_action_rate = torch.exp(-0.1*torch.square(action_rate_error)) * self.rew_scales["action_rate"]
 
         # total reward
         self.rew_buf = clock_reward_frc + clock_reward_vel + rew_orient + rew_base_height +\
