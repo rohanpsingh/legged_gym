@@ -245,8 +245,6 @@ class HRP5P(BaseTask):
         self.rew_scales = class_to_dict(self.cfg.rewards.scales)
 
         # linear velocity tracking
-        self.commands[:, 0] = 1.
-        self.commands[:, 1] = 0
         lin_vel_error = torch.norm(self.commands[:, :2] - self.base_lin_vel[:, :2], dim=1)
         rew_lin_vel_xy = torch.exp(-2*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
 

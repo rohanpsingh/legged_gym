@@ -60,11 +60,19 @@ class HRP5PCfg(LeggedRobotCfg):
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 1
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 25
+        decimation = 5
 
-    class commands(LeggedRobotCfg.commands):
-        num_commands = 4
-        heading_command = False
+    class commands:
+        curriculum = False
+        max_curriculum = 1.
+        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+        resampling_time = 10. # time before command are changed[s]
+        heading_command = False # if true: compute ang vel command from heading error
+        class ranges:
+            lin_vel_x = [.5, .5] # min max [m/s]
+            lin_vel_y = [.0, .0]   # min max [m/s]
+            ang_vel_yaw = [0, 0]    # min max [rad/s]
+            heading = [0, 0]
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/hrp5p/mjcf/HRP5Pmain.xml'
@@ -88,7 +96,7 @@ class HRP5PCfg(LeggedRobotCfg):
         randomize_base_mass = False
         push_robots = False
 
-    class rewards(LeggedRobotCfg.rewards):
+    class rewards:
         soft_dof_pos_limit = 0.95
         soft_dof_vel_limit = 0.9
         soft_torque_limit = 0.9
@@ -96,8 +104,8 @@ class HRP5PCfg(LeggedRobotCfg):
         only_positive_rewards = False
         base_height_target = 0.79
         class scales:
-            lin_vel_xy = 1.
-            ang_vel_z = 1
+            lin_vel_xy = 0.5
+            ang_vel_z = 0.2
             orient = 0
             torque = 0.2
             joint_acc = 0
@@ -128,7 +136,7 @@ class HRP5PCfg(LeggedRobotCfg):
             height_measurements = 0.1
 
     class sim(LeggedRobotCfg.sim):
-        dt =  0.001
+        dt =  0.005
         substeps = 1
         gravity = [0., 0. ,-9.81]  # [m/s^2]
         up_axis = 1  # 0 is y, 1 is z
