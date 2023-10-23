@@ -104,14 +104,16 @@ class HRP5PCfg(LeggedRobotCfg):
         only_positive_rewards = False
         base_height_target = 0.79
         class scales:
-            lin_vel_xy = 0.5
-            ang_vel_z = 0.2
-            orient = 0
-            torque = 0.2
-            joint_acc = 0
-            base_height = 0.2
-            action_rate = 0.2
-            posture = 0.2
+            lin_vel_xy = 0.2
+            ang_vel_z = 0.1
+            orient = 0.1
+            torque = 0.1
+            base_height = 0.05
+            action_rate = 0.05
+            upperbody = 0.2
+            posture = 0.1
+            clock_frc = 0.25
+            clock_vel = 0
 
     class normalization(LeggedRobotCfg.normalization):
         class obs_scales:

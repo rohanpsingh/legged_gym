@@ -90,9 +90,10 @@ class HRP5P(BaseTask):
         # reward episode sums
         torch_zeros = lambda : torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
         self.episode_sums = {"lin_vel_xy": torch_zeros(), "ang_vel_z": torch_zeros(),
-                             "orient": torch_zeros(), "torques": torch_zeros(), "joint_acc": torch_zeros(), "base_height": torch_zeros(),
+                             "orient": torch_zeros(), "torques": torch_zeros(), "base_height": torch_zeros(),
                              "action_rate": torch_zeros(), "posture": torch_zeros(),
-                             "clock_frc": torch_zeros(), "clock_vel": torch_zeros()}
+                             "clock_frc": torch_zeros(), "clock_vel": torch_zeros(),
+                             "upperbody": torch_zeros()}
 
         total_duration = 1.0
         swing_duration = 0.8
@@ -224,6 +225,8 @@ class HRP5P(BaseTask):
         self.phases+=1
         self.phases[self.phases>=self._period] = 0
 
+        self.rew_scales = class_to_dict(self.cfg.rewards.scales)
+
         lfoot_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], "Lleg_Link5")
         rfoot_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], "Rleg_Link5")
         self.l_foot_vel = torch.norm(
@@ -235,25 +238,25 @@ class HRP5P(BaseTask):
         self.r_foot_frc = torch.norm(feet_forces[:, 0, :], dim=1)
         self.l_foot_frc = torch.norm(feet_forces[:, 1, :], dim=1)
 
+        # clock rewards
         r_frc = self.right_clock[0]
         l_frc = self.left_clock[0]
         r_vel = self.right_clock[1]
         l_vel = self.left_clock[1]
-        clock_reward_frc = rewards._calc_foot_frc_clock_reward(self, l_frc, r_frc)
-        clock_reward_vel = rewards._calc_foot_vel_clock_reward(self, l_vel, r_vel)
-
-        self.rew_scales = class_to_dict(self.cfg.rewards.scales)
+        clock_reward_frc = rewards._calc_foot_frc_clock_reward(self, l_frc, r_frc) * self.rew_scales["clock_frc"]
+        clock_reward_vel = rewards._calc_foot_vel_clock_reward(self, l_vel, r_vel) * self.rew_scales["clock_vel"]
 
         # linear velocity tracking
         lin_vel_error = torch.norm(self.commands[:, :2] - self.base_lin_vel[:, :2], dim=1)
-        rew_lin_vel_xy = torch.exp(-2*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
+        rew_lin_vel_xy = torch.exp(-4*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
 
         # angular velocity tracking
         ang_vel_error = torch.norm(self.base_ang_vel[:, 2].unsqueeze(-1), dim=1)
         rew_ang_vel_z = torch.exp(-4*torch.square(ang_vel_error)) * self.rew_scales["ang_vel_z"]
 
         # orientation penalty
-        rew_orient = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1) * self.rew_scales["orient"]
+        orient_error = torch.norm(self.projected_gravity[:, :2], dim=1)
+        rew_orient = torch.exp(-4*torch.square(orient_error)) * self.rew_scales["orient"]
 
         # base height penalty
         height_error = torch.norm(self.root_states[:, 2].unsqueeze(-1) - self.cfg.rewards.base_height_target, dim=1)
@@ -261,14 +264,17 @@ class HRP5P(BaseTask):
 
         # cosmetic penalty
         posture_error = torch.norm(self.dof_pos[:, :] - self.default_dof_pos[:, :], dim=1)
-        rew_posture = torch.exp(-0.5*torch.square(posture_error)) * self.rew_scales["posture"]
+        rew_posture = torch.exp(-1*torch.square(posture_error)) * self.rew_scales["posture"]
+
+        # upperbody penalty
+        head_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], "Head_Link1_Plan2")
+        head_pos = self.rb_states.view(self.num_envs, self.num_bodies, 13)[:, head_index, :2]
+        upperbody_error = torch.norm(self.root_states[:, :2] - head_pos, dim=1)
+        rew_upperbody = torch.exp(-10*upperbody_error) * self.rew_scales["upperbody"]
 
         # torque penalty
         torque_error = torch.norm(self.torques, dim=1)
         rew_torque = torch.exp(-1e-5*torch.square(torque_error)) * self.rew_scales["torque"]
-
-        # joint acc penalty
-        rew_joint_acc = torch.sum(torch.square(self.last_dof_vel - self.dof_vel), dim=1) * self.rew_scales["joint_acc"]
 
         # action rate penalty
         action_rate_error = torch.norm(self.last_actions - self.actions, dim=1)
@@ -276,20 +282,20 @@ class HRP5P(BaseTask):
 
         # total reward
         self.rew_buf = clock_reward_frc + clock_reward_vel + rew_orient + rew_base_height +\
-            rew_torque + rew_joint_acc + rew_action_rate + rew_posture + rew_lin_vel_xy + rew_ang_vel_z
+            rew_torque + rew_action_rate + rew_posture + rew_lin_vel_xy + rew_ang_vel_z +\
+            rew_upperbody
 
         # log episode reward sums
         self.episode_sums["lin_vel_xy"] += rew_lin_vel_xy
         self.episode_sums["ang_vel_z"] += rew_ang_vel_z
         self.episode_sums["orient"] += rew_orient
         self.episode_sums["torques"] += rew_torque
-        self.episode_sums["joint_acc"] += rew_joint_acc
         self.episode_sums["action_rate"] += rew_action_rate
         self.episode_sums["base_height"] += rew_base_height
         self.episode_sums["posture"] += rew_posture
         self.episode_sums["clock_frc"] += clock_reward_frc
         self.episode_sums["clock_vel"] += clock_reward_vel
-
+        self.episode_sums["upperbody"] += rew_upperbody
 
     def compute_observations(self):
         """ Computes observations
