@@ -278,7 +278,7 @@ class HRP5P(BaseTask):
 
         # total reward
         self.rew_buf = clock_reward_frc + clock_reward_vel + rew_orient + rew_base_height +\
-            rew_torque + rew_joint_acc + rew_action_rate + rew_posture
+            rew_torque + rew_joint_acc + rew_action_rate + rew_posture + rew_lin_vel_xy + rew_ang_vel_z
 
         # log episode reward sums
         self.episode_sums["lin_vel_xy"] += rew_lin_vel_xy
