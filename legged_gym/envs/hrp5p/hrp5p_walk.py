@@ -309,13 +309,13 @@ class HRP5P(BaseTask):
         root_euler = torch_jit_utils.get_euler_xyz(self.base_quat)
         robot_state = torch.cat((root_euler[0].unsqueeze(1),
                                  root_euler[1].unsqueeze(1),
-                                 self.base_ang_vel  * self.obs_scales.ang_vel,
-                                 self.dof_pos * self.obs_scales.dof_pos,
+                                 self.base_ang_vel,
+                                 self.dof_pos,
                                  torch.zeros((self.num_envs, 12), dtype=torch.float, device=self.device),
-                                 self.dof_vel * self.obs_scales.dof_vel,
+                                 self.dof_vel,
                                  torch.zeros((self.num_envs, 12), dtype=torch.float, device=self.device),
                                  torch.zeros((self.num_envs, 12), dtype=torch.float, device=self.device),
-                                 self.torques * self.obs_scales.dof_torques,
+                                 self.torques,
         ),dim=-1)
 
         self.obs_buf = torch.cat((robot_state, ext_state), dim=-1)
