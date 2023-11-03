@@ -23,26 +23,26 @@ def _calc_foot_frc_clock_reward(self, left_frc_fn, right_frc_fn):
     right_frc_clock = right_frc_fn(self.phases)
 
     left_frc_err = torch.square(left_frc_clock - self.l_foot_frc/desired_max_foot_frc)
-    left_frc_score = torch.exp(-left_frc_err/0.2)
+    left_frc_score = torch.exp(-4*left_frc_err)
 
     right_frc_err = torch.square(right_frc_clock - self.r_foot_frc/desired_max_foot_frc)
-    right_frc_score = torch.exp(-right_frc_err/0.2)
+    right_frc_score = torch.exp(-4*right_frc_err)
 
     foot_frc_score = (left_frc_score + right_frc_score)/2
     return foot_frc_score
 
 def _calc_foot_vel_clock_reward(self, left_vel_fn, right_vel_fn):
     # constraints of foot velocities based on clock
-    desired_max_foot_vel = torch.tensor(2, dtype=torch.float)
+    desired_max_foot_vel = torch.tensor(1, dtype=torch.float)
 
     left_vel_clock = left_vel_fn(self.phases)
     right_vel_clock = right_vel_fn(self.phases)
 
     left_vel_err = torch.square(left_vel_clock - self.l_foot_vel/desired_max_foot_vel)
-    left_vel_score = torch.exp(-left_vel_err/0.2)
+    left_vel_score = torch.exp(-4*left_vel_err)
 
     right_vel_err = torch.square(right_vel_clock - self.r_foot_vel/desired_max_foot_vel)
-    right_vel_score = torch.exp(-right_vel_err/0.2)
+    right_vel_score = torch.exp(-4*right_vel_err)
 
     foot_vel_score = (left_vel_score + right_vel_score)/2
     return foot_vel_score
