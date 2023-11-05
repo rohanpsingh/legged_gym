@@ -246,12 +246,22 @@ class HRP5P(BaseTask):
         clock_reward_frc = rewards._calc_foot_frc_clock_reward(self, l_frc, r_frc) * self.rew_scales["clock_frc"]
         clock_reward_vel = rewards._calc_foot_vel_clock_reward(self, l_vel, r_vel) * self.rew_scales["clock_vel"]
 
+        standing_frc = rewards._calc_foot_frc_clock_reward(
+            self, (lambda _:1), (lambda _:1)) * self.rew_scales["clock_frc"]
+        standing_vel = rewards._calc_foot_vel_clock_reward(
+            self, (lambda _:-1), (lambda _:-1)) * self.rew_scales["clock_frc"]
+        #clock_reward_frc[self.modes==0] = standing_frc[self.modes==0]
+        #clock_reward_vel[self.modes==0] = standing_vel[self.modes==0]
+
+
         # linear velocity tracking
-        lin_vel_error = torch.norm(self.commands[:, :2] - self.base_lin_vel[:, :2], dim=1)
+        lin_vel_error = torch.norm(self.commands[:, 3].unsqueeze(-1) - self.base_lin_vel[:, 0].unsqueeze(-1), dim=1)
+        lin_vel_error[self.modes!=2] = torch.norm(self.base_lin_vel[self.modes!=2, 0].unsqueeze(-1), dim=1)
         rew_lin_vel_xy = torch.exp(-4*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
 
         # angular velocity tracking
-        ang_vel_error = torch.norm(self.base_ang_vel[:, 2].unsqueeze(-1), dim=1)
+        ang_vel_error = torch.norm(self.commands[:, 3].unsqueeze(-1) - self.base_ang_vel[:, 2].unsqueeze(-1), dim=1)
+        ang_vel_error[self.modes!=1] = torch.norm(self.base_ang_vel[self.modes!=1, 2].unsqueeze(-1), dim=1)
         rew_ang_vel_z = torch.exp(-4*torch.square(ang_vel_error)) * self.rew_scales["ang_vel_z"]
 
         # orientation penalty
@@ -302,8 +312,8 @@ class HRP5P(BaseTask):
         """
         clock1 = torch.sin(2 * torch.pi * self.phases / self._period)
         clock2 = torch.cos(2 * torch.pi * self.phases / self._period)
-        mode = torch.tensor([0, 1, 0], dtype=torch.float, device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
-        mode_ref = torch.zeros((self.num_envs, 1), dtype=torch.float, device=self.device)
+        mode = self.commands[:, :3]
+        mode_ref = self.commands[:, 3].unsqueeze(-1)
         ext_state = torch.cat((clock1.unsqueeze(1), clock2.unsqueeze(1), mode, mode_ref), dim=-1)
 
         root_euler = torch_jit_utils.get_euler_xyz(self.base_quat)
@@ -429,14 +439,9 @@ class HRP5P(BaseTask):
         """ Callback called before computing terminations, rewards, and observations
             Default behaviour: Compute ang vel command based on target and heading, compute measured terrain heights and randomly push robots
         """
-        # 
         env_ids = (self.episode_length_buf % int(self.cfg.commands.resampling_time / self.dt)==0).nonzero(as_tuple=False).flatten()
-        self._resample_commands(env_ids)
-        if self.cfg.commands.heading_command:
-            forward = quat_apply(self.base_quat, self.forward_vec)
-            heading = torch.atan2(forward[:, 1], forward[:, 0])
-            self.commands[:, 2] = torch.clip(0.5*wrap_to_pi(self.commands[:, 3] - heading), -1., 1.)
-
+        if len(env_ids):
+            self._resample_commands(env_ids)
         if self.cfg.domain_rand.push_robots and  (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
             self._push_robots()
 
@@ -446,15 +451,27 @@ class HRP5P(BaseTask):
         Args:
             env_ids (List[int]): Environments ids for which new commands are needed
         """
-        self.commands[env_ids, 0] = torch_rand_float(self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        self.commands[env_ids, 1] = torch_rand_float(self.command_ranges["lin_vel_y"][0], self.command_ranges["lin_vel_y"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        if self.cfg.commands.heading_command:
-            self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0], self.command_ranges["heading"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        else:
-            self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        # change modes of envs in DS phase
+        in_ds_envs = torch.logical_and(
+            self.right_clock[0](self.phases)==1, self.left_clock[0](self.phases)==1)
+        _env_ids = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device, requires_grad=False)
+        _env_ids[env_ids] = True
+
+        mode_change_envs = torch.logical_and(in_ds_envs, _env_ids).nonzero(as_tuple=False).flatten()
+
+        self.modes[mode_change_envs] = torch.randint(
+            0, 3, (len(mode_change_envs),), dtype=torch.int64, device=self.device, requires_grad=False)
+
+        self.commands[:, :3] = torch.nn.functional.one_hot(self.modes, 3).float()
+        self.commands[self.modes==0, 3] = torch_rand_float(
+            0, 0, (len(self.modes), 1), device=self.device).squeeze(1)[self.modes==0]
+        self.commands[self.modes==1, 3] = torch_rand_float(
+            self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(self.modes), 1), device=self.device).squeeze(1)[self.modes==1]
+        self.commands[self.modes==2, 3] = torch_rand_float(
+            self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(self.modes), 1), device=self.device).squeeze(1)[self.modes==2]
 
         # set small commands to zero
-        self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
+        #self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
 
     def _compute_torques(self, actions):
         """ Compute torques from actions.
@@ -540,7 +557,7 @@ class HRP5P(BaseTask):
         # robots that walked far enough progress to harder terains
         move_up = distance > self.terrain.env_length / 2
         # robots that walked less than half of their required distance go to simpler terrains
-        move_down = (distance < torch.norm(self.commands[env_ids, :2], dim=1)*self.max_episode_length_s*0.5) * ~move_up
+        move_down = (distance < torch.norm(self.commands[env_ids, 3], dim=1)*self.max_episode_length_s*0.5) * ~move_up
         self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
         # Robots that solve the last level are sent to a random one
         self.terrain_levels[env_ids] = torch.where(self.terrain_levels[env_ids]>=self.max_terrain_level,
@@ -609,7 +626,7 @@ class HRP5P(BaseTask):
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
         self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
         self.commands = torch.zeros(self.num_envs, self.cfg.commands.num_commands, dtype=torch.float, device=self.device, requires_grad=False) # x vel, y vel, yaw vel, heading
-        self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel], device=self.device, requires_grad=False,) # TODO change this
+        self.modes = torch.randint(0, 3, (self.num_envs,), dtype=torch.int64, device=self.device, requires_grad=False)
         self.last_contacts = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device, requires_grad=False)
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])

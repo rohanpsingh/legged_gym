@@ -66,13 +66,10 @@ class HRP5PCfg(LeggedRobotCfg):
         curriculum = False
         max_curriculum = 1.
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-        resampling_time = 10. # time before command are changed[s]
-        heading_command = False # if true: compute ang vel command from heading error
+        resampling_time = 1000. # time before command are changed[s]
         class ranges:
-            lin_vel_x = [.5, .5] # min max [m/s]
-            lin_vel_y = [.0, .0]   # min max [m/s]
-            ang_vel_yaw = [0, 0]    # min max [rad/s]
-            heading = [0, 0]
+            lin_vel_x = [0., 0.4] # min max [m/s]
+            ang_vel_yaw = [-0.3, 0.3]    # min max [rad/s]
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/hrp5p/mjcf/HRP5Pmain.xml'
@@ -105,15 +102,15 @@ class HRP5PCfg(LeggedRobotCfg):
         base_height_target = 0.79
         class scales:
             lin_vel_xy = 0.2
-            ang_vel_z = 0.1
-            orient = 0.1
+            ang_vel_z = 0.2
+            orient = 0.05
             torque = 0.1
             base_height = 0.05
             action_rate = 0.05
-            upperbody = 0.2
+            upperbody = 0.1
             posture = 0.1
-            clock_frc = 0.25
-            clock_vel = 0
+            clock_frc = 0.2
+            clock_vel = 0.2
 
     class normalization(LeggedRobotCfg.normalization):
         class obs_scales:
