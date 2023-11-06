@@ -21,14 +21,14 @@ def _calc_foot_frc_clock_reward(self, left_frc_fn, right_frc_fn):
     left_frc_clock = left_frc_fn(self.phases)
     right_frc_clock = right_frc_fn(self.phases)
 
-    desired_lfoot_frc = left_frc_clock*max_foot_frc
+    desired_lfoot_frc = left_frc_clock.float()
     desired_lfoot_frc[right_frc_clock==1] = desired_lfoot_frc[right_frc_clock==1]*0.5
-    left_frc_err = torch.square(desired_lfoot_frc - self.l_foot_frc)
+    left_frc_err = torch.square(desired_lfoot_frc - self.l_foot_frc/max_foot_frc)
     left_frc_score = torch.exp(-4*left_frc_err)
 
-    desired_rfoot_frc = right_frc_clock*max_foot_frc
+    desired_rfoot_frc = right_frc_clock.float()
     desired_rfoot_frc[left_frc_clock==1] = desired_rfoot_frc[left_frc_clock==1]*0.5
-    right_frc_err = torch.square(desired_rfoot_frc - self.r_foot_frc)
+    right_frc_err = torch.square(desired_rfoot_frc - self.r_foot_frc/max_foot_frc)
     right_frc_score = torch.exp(-4*right_frc_err)
 
     foot_frc_score = (left_frc_score + right_frc_score)/2

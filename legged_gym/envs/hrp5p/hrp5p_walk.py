@@ -246,13 +246,14 @@ class HRP5P(BaseTask):
         clock_reward_frc = rewards._calc_foot_frc_clock_reward(self, l_frc, r_frc) * self.rew_scales["clock_frc"]
         clock_reward_vel = rewards._calc_foot_vel_clock_reward(self, l_vel, r_vel) * self.rew_scales["clock_vel"]
 
-        standing_frc = rewards._calc_foot_frc_clock_reward(
-            self, (lambda _:1), (lambda _:1)) * self.rew_scales["clock_frc"]
-        standing_vel = rewards._calc_foot_vel_clock_reward(
-            self, (lambda _:-1), (lambda _:-1)) * self.rew_scales["clock_frc"]
-        #clock_reward_frc[self.modes==0] = standing_frc[self.modes==0]
-        #clock_reward_vel[self.modes==0] = standing_vel[self.modes==0]
-
+        r_frc = lambda x:torch.ones_like(x)
+        l_frc = lambda x:torch.ones_like(x)
+        r_vel = lambda x:torch.zeros_like(x)
+        l_vel = lambda x:torch.zeros_like(x)
+        ds_frc = rewards._calc_foot_frc_clock_reward(self, l_frc, r_frc) * self.rew_scales["clock_frc"]
+        ds_vel = rewards._calc_foot_vel_clock_reward(self, l_vel, r_vel) * self.rew_scales["clock_vel"]
+        clock_reward_frc[self.modes==0] = ds_frc[self.modes==0]
+        clock_reward_vel[self.modes==0] = ds_vel[self.modes==0]
 
         # linear velocity tracking
         lin_vel_error = torch.norm(self.commands[:, 3].unsqueeze(-1) - self.base_lin_vel[:, 0].unsqueeze(-1), dim=1)
