@@ -16,16 +16,19 @@ def create_simple_phase_reward(swing_duration, stance_duration, FREQ):
 
 def _calc_foot_frc_clock_reward(self, left_frc_fn, right_frc_fn):
     # constraints of foot forces based on clock
-    mass = 100
-    desired_max_foot_frc = torch.tensor(100*9.8, dtype=torch.float)
+    max_foot_frc = torch.tensor(self.robot_mass*9.8, dtype=torch.float)
 
     left_frc_clock = left_frc_fn(self.phases)
     right_frc_clock = right_frc_fn(self.phases)
 
-    left_frc_err = torch.square(left_frc_clock - self.l_foot_frc/desired_max_foot_frc)
+    desired_lfoot_frc = left_frc_clock*max_foot_frc
+    desired_lfoot_frc[right_frc_clock==1] = desired_lfoot_frc[right_frc_clock==1]*0.5
+    left_frc_err = torch.square(desired_lfoot_frc - self.l_foot_frc)
     left_frc_score = torch.exp(-4*left_frc_err)
 
-    right_frc_err = torch.square(right_frc_clock - self.r_foot_frc/desired_max_foot_frc)
+    desired_rfoot_frc = right_frc_clock*max_foot_frc
+    desired_rfoot_frc[left_frc_clock==1] = desired_rfoot_frc[left_frc_clock==1]*0.5
+    right_frc_err = torch.square(desired_rfoot_frc - self.r_foot_frc)
     right_frc_score = torch.exp(-4*right_frc_err)
 
     foot_frc_score = (left_frc_score + right_frc_score)/2

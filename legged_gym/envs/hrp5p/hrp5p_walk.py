@@ -787,6 +787,9 @@ class HRP5P(BaseTask):
             self.envs.append(env_handle)
             self.actor_handles.append(actor_handle)
 
+        # compute total mass of robot
+        self.robot_mass = sum([i.mass for i in body_props])
+
         self.feet_indices = torch.zeros(len(feet_names), dtype=torch.long, device=self.device, requires_grad=False)
         for i in range(len(feet_names)):
             self.feet_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], feet_names[i])
