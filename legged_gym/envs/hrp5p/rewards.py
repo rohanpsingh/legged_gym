@@ -36,7 +36,7 @@ def _calc_foot_frc_clock_reward(self, left_frc_fn, right_frc_fn):
 
 def _calc_foot_vel_clock_reward(self, left_vel_fn, right_vel_fn):
     # constraints of foot velocities based on clock
-    desired_max_foot_vel = torch.tensor(0.2, dtype=torch.float)
+    desired_max_foot_vel = torch.tensor(0.5, dtype=torch.float)
 
     left_vel_clock = left_vel_fn(self.phases)
     right_vel_clock = right_vel_fn(self.phases)
