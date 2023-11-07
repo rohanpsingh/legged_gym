@@ -278,10 +278,19 @@ class HRP5P(BaseTask):
         rew_posture = torch.exp(-1*torch.square(posture_error)) * self.rew_scales["posture"]
 
         # upperbody penalty
+        root_yaw = get_euler_xyz(self.base_quat)[2]
+        _roll = _pitch = torch.zeros_like(root_yaw)
+        _quat = quat_from_euler_xyz(_roll, _pitch, root_yaw)
+        robot_base_inv = tf_inverse(_quat, self.root_states[:, 0:3])
+
         head_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], "Head_Link1_Plan2")
-        head_pos = self.rb_states.view(self.num_envs, self.num_bodies, 13)[:, head_index, :2]
-        upperbody_error = torch.norm(self.root_states[:, :2] - head_pos, dim=1)
-        rew_upperbody = torch.exp(-10*upperbody_error) * self.rew_scales["upperbody"]
+        head_pose = self.rb_states.view(self.num_envs, self.num_bodies, 13)[:, head_index, 0:7]
+        _, head_pos_in_robot_base = tf_combine(
+            robot_base_inv[0], robot_base_inv[1], head_pose[:, 3:7], head_pose[:, 0:3])
+        head_pos_in_robot_base[:, 0] -= 0.127 # offset at nominal posture
+
+        upperbody_error = torch.norm(head_pos_in_robot_base[:, 0:2], dim=1)
+        rew_upperbody = torch.exp(-2*upperbody_error) * self.rew_scales["upperbody"]
 
         # torque penalty
         torque_error = torch.norm(self.torques, dim=1)
