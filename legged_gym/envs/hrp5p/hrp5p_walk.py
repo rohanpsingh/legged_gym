@@ -327,8 +327,13 @@ class HRP5P(BaseTask):
         ext_state = torch.cat((clock1.unsqueeze(1), clock2.unsqueeze(1), mode, mode_ref), dim=-1)
 
         root_euler = torch_jit_utils.get_euler_xyz(self.base_quat)
-        robot_state = torch.cat((root_euler[0].unsqueeze(1),
-                                 root_euler[1].unsqueeze(1),
+        roll, pitch = root_euler[0], root_euler[1]
+        roll[roll > torch.pi] -= 2*torch.pi
+        roll[roll < -torch.pi] += 2*torch.pi
+        pitch[pitch > torch.pi] -= 2*torch.pi
+        pitch[pitch < -torch.pi] += 2*torch.pi
+        robot_state = torch.cat((roll.unsqueeze(1),
+                                 pitch.unsqueeze(1),
                                  self.base_ang_vel,
                                  self.dof_pos,
                                  torch.zeros((self.num_envs, 12), dtype=torch.float, device=self.device),
