@@ -24,12 +24,12 @@ def _calc_foot_frc_clock_reward(self, left_frc_fn, right_frc_fn):
     desired_lfoot_frc = left_frc_clock.float()
     desired_lfoot_frc[right_frc_clock==1] = desired_lfoot_frc[right_frc_clock==1]*0.5
     left_frc_err = torch.square(desired_lfoot_frc - self.l_foot_frc/max_foot_frc)
-    left_frc_score = torch.exp(-4*left_frc_err)
+    left_frc_score = torch.exp(-2*left_frc_err)
 
     desired_rfoot_frc = right_frc_clock.float()
     desired_rfoot_frc[left_frc_clock==1] = desired_rfoot_frc[left_frc_clock==1]*0.5
     right_frc_err = torch.square(desired_rfoot_frc - self.r_foot_frc/max_foot_frc)
-    right_frc_score = torch.exp(-4*right_frc_err)
+    right_frc_score = torch.exp(-2*right_frc_err)
 
     foot_frc_score = (left_frc_score + right_frc_score)/2
     return foot_frc_score
@@ -42,10 +42,10 @@ def _calc_foot_vel_clock_reward(self, left_vel_fn, right_vel_fn):
     right_vel_clock = right_vel_fn(self.phases)
 
     left_vel_err = torch.square(left_vel_clock - self.l_foot_vel/desired_max_foot_vel)
-    left_vel_score = torch.exp(-4*left_vel_err)
+    left_vel_score = torch.exp(-2*left_vel_err)
 
     right_vel_err = torch.square(right_vel_clock - self.r_foot_vel/desired_max_foot_vel)
-    right_vel_score = torch.exp(-4*right_vel_err)
+    right_vel_score = torch.exp(-2*right_vel_err)
 
     foot_vel_score = (left_vel_score + right_vel_score)/2
     return foot_vel_score

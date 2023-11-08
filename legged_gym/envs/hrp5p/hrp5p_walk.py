@@ -258,12 +258,12 @@ class HRP5P(BaseTask):
         # linear velocity tracking
         lin_vel_error = torch.norm(self.commands[:, 3].unsqueeze(-1) - self.base_lin_vel[:, 0].unsqueeze(-1), dim=1)
         lin_vel_error[self.modes!=2] = torch.norm(self.base_lin_vel[self.modes!=2, 0].unsqueeze(-1), dim=1)
-        rew_lin_vel_xy = torch.exp(-10*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
+        rew_lin_vel_xy = torch.exp(-4*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
 
         # angular velocity tracking
         ang_vel_error = torch.norm(self.commands[:, 3].unsqueeze(-1) - self.base_ang_vel[:, 2].unsqueeze(-1), dim=1)
         ang_vel_error[self.modes!=1] = torch.norm(self.base_ang_vel[self.modes!=1, 2].unsqueeze(-1), dim=1)
-        rew_ang_vel_z = torch.exp(-10*torch.square(ang_vel_error)) * self.rew_scales["ang_vel_z"]
+        rew_ang_vel_z = torch.exp(-4*torch.square(ang_vel_error)) * self.rew_scales["ang_vel_z"]
 
         # orientation penalty
         orient_error = torch.norm(self.projected_gravity[:, :2], dim=1)
@@ -294,7 +294,7 @@ class HRP5P(BaseTask):
 
         # torque penalty
         torque_error = torch.norm(self.torques, dim=1)
-        rew_torque = torch.exp(-1e-5*torch.square(torque_error)) * self.rew_scales["torque"]
+        rew_torque = torch.exp(-1e-6*torch.square(torque_error)) * self.rew_scales["torque"]
 
         # action rate penalty
         action_rate_error = torch.norm(self.last_actions - self.actions, dim=1)
