@@ -110,6 +110,30 @@ class HRP5P(BaseTask):
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.init_done = True
 
+
+        self.obs_mean = torch.tensor([[
+            0, 0,
+            0, 0, 0,
+            0, 0, -0.489, 0.873, -0.384, 0,
+            0, 0, -0.489, 0.873, -0.384, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0.5, 0.5, 0.5, 0]], dtype=torch.float, device=self.device)
+
+        self.obs_std = torch.tensor([[
+            0.2, 0.2,
+            1, 1, 1,
+            0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+            1, 1, 1, 1, 1, 1]], dtype=torch.float, device=self.device)
+
     def step(self, actions):
         """ Apply actions, simulate, call self.post_physics_step()
 
@@ -344,6 +368,7 @@ class HRP5P(BaseTask):
         ),dim=-1)
 
         self.obs_buf = torch.cat((robot_state, ext_state), dim=-1)
+        self.obs_buf = (self.obs_buf - self.obs_mean) / self.obs_std
 
         # robot_state = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
         #                        self.base_ang_vel  * self.obs_scales.ang_vel,
