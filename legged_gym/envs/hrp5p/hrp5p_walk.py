@@ -503,14 +503,20 @@ class HRP5P(BaseTask):
             0, 3, (len(mode_change_envs),), dtype=torch.int64, device=self.device, requires_grad=False)
 
         self.commands[:, :3] = torch.nn.functional.one_hot(self.modes, 3).float()
-        self.commands[self.modes==0, 3] = torch_rand_float(
-            0, 0, (len(self.modes), 1), device=self.device).squeeze(1)[self.modes==0]
-        self.commands[self.modes==1, 3] = torch_rand_float(
-            self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(self.modes), 1), device=self.device).squeeze(1)[self.modes==1]
-        self.commands[self.modes==2, 3] = torch_rand_float(
-            self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(self.modes), 1), device=self.device).squeeze(1)[self.modes==2]
+
+        mode0_envs = torch.logical_and(self.modes==0, torch.logical_and(in_ds_envs, _env_ids))
+        mode1_envs = torch.logical_and(self.modes==1, torch.logical_and(in_ds_envs, _env_ids))
+        mode2_envs = torch.logical_and(self.modes==2, torch.logical_and(in_ds_envs, _env_ids))
+
+        self.commands[mode0_envs, 3] = torch_rand_float(
+            0, 0, (len(self.modes), 1), device=self.device).squeeze(1)[mode0_envs]
+        self.commands[mode1_envs, 3] = torch_rand_float(
+            self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(self.modes), 1), device=self.device).squeeze(1)[mode1_envs]
+        self.commands[mode2_envs, 3] = torch_rand_float(
+            self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(self.modes), 1), device=self.device).squeeze(1)[mode2_envs]
 
         # set small commands to zero
+        self.commands[self.modes==1, 3] *= (torch.norm(self.commands[self.modes==1, 3].unsqueeze(-1), dim=1) > 0.1)
         #self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
 
     def _compute_torques(self, actions):

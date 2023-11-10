@@ -66,7 +66,7 @@ class HRP5PCfg(LeggedRobotCfg):
         curriculum = False
         max_curriculum = 1.
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-        resampling_time = 1000. # time before command are changed[s]
+        resampling_time = 4. # time before command are changed[s]
         class ranges:
             lin_vel_x = [0., 0.4] # min max [m/s]
             ang_vel_yaw = [-0.3, 0.3]    # min max [rad/s]
