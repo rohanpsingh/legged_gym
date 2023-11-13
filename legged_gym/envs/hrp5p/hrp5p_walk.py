@@ -314,7 +314,7 @@ class HRP5P(BaseTask):
         head_pos_in_robot_base[:, 0] -= 0.127 # offset at nominal posture
 
         upperbody_error = torch.norm(head_pos_in_robot_base[:, 0:2], dim=1)
-        rew_upperbody = torch.exp(-2*torch.square(upperbody_error)) * self.rew_scales["upperbody"]
+        rew_upperbody = torch.exp(-40*torch.square(upperbody_error)) * self.rew_scales["upperbody"]
 
         # torque penalty
         torque_error = torch.norm(self.torques, dim=1)
