@@ -502,7 +502,15 @@ class HRP5P(BaseTask):
         self.modes[mode_change_envs] = torch.randint(
             0, 3, (len(mode_change_envs),), dtype=torch.int64, device=self.device, requires_grad=False)
 
-        self.commands[:, :3] = torch.nn.functional.one_hot(self.modes, 3).float()
+        #self.commands[:, :3] = torch.nn.functional.one_hot(self.modes, 3).float()
+        mapping = {
+            0: torch.tensor([0, 0, 1], dtype=torch.float, device=self.device, requires_grad=False),
+            1: torch.tensor([0, 1, 0], dtype=torch.float, device=self.device, requires_grad=False),
+            2: torch.tensor([1, 0, 0], dtype=torch.float, device=self.device, requires_grad=False)
+        }
+        self.commands[self.modes==0, :3] = mapping[0]
+        self.commands[self.modes==1, :3] = mapping[1]
+        self.commands[self.modes==2, :3] = mapping[2]
 
         mode0_envs = torch.logical_and(self.modes==0, torch.logical_and(in_ds_envs, _env_ids))
         mode1_envs = torch.logical_and(self.modes==1, torch.logical_and(in_ds_envs, _env_ids))
@@ -810,6 +818,12 @@ class HRP5P(BaseTask):
             self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props)
             actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, self.cfg.asset.name, i, self.cfg.asset.self_collisions, 0)
             dof_props = self._process_dof_props(dof_props_asset, i)
+
+            # manually set armature values
+            dof_props["armature"] = np.array([
+                0.110084846291, 0.317032732584, 0.317032732584, 1.174334694856, 0.161699903568, 0.112299753167,
+                0.110084846291, 0.317032732584, 0.317032732584, 1.174334694856, 0.161699903568, 0.112299753167])
+
             self.gym.set_actor_dof_properties(env_handle, actor_handle, dof_props)
             body_props = self.gym.get_actor_rigid_body_properties(env_handle, actor_handle)
             body_props = self._process_rigid_body_props(body_props, i)
