@@ -88,10 +88,18 @@ class HRP5PCfg(LeggedRobotCfg):
         armature = 0.
         thickness = 0.01
 
-    class domain_rand(LeggedRobotCfg.domain_rand):
-        randomize_friction = False
+    class domain_rand:
+        randomize_friction = True
+        friction_range = [0.0, 1.25]
         randomize_base_mass = False
-        push_robots = False
+        added_mass_range = [-1., 1.]
+        push_robots = True
+        push_interval_s = 10
+        max_push_vel_xy = .2
+        randomize_joint_friction = True
+        joint_friction_range = [0.0, 0.02]
+        joint_damping_range = [2, 10]
+        joint_randomization_interval_s = 1
 
     class rewards:
         soft_dof_pos_limit = 0.95

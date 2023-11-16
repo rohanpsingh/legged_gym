@@ -81,6 +81,7 @@ class HRP5P(BaseTask):
         self.max_episode_length_s = self.cfg.env.episode_length_s
         self.max_episode_length = np.ceil(self.max_episode_length_s / self.dt)
         self.cfg.domain_rand.push_interval = np.ceil(self.cfg.domain_rand.push_interval_s / self.dt)
+        self.cfg.domain_rand.joint_randomization_interval = np.ceil(self.cfg.domain_rand.joint_randomization_interval_s / self.dt)
 
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
 
@@ -484,6 +485,17 @@ class HRP5P(BaseTask):
             self._resample_commands(env_ids)
         if self.cfg.domain_rand.push_robots and  (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
             self._push_robots()
+
+        if self.cfg.domain_rand.randomize_joint_friction and (self.common_step_counter % self.cfg.domain_rand.joint_randomization_interval == 0):
+            jnt_friction_range = self.cfg.domain_rand.joint_friction_range
+            jnt_damping_range = self.cfg.domain_rand.joint_damping_range
+            for i in range(self.num_envs):
+                env = self.envs[i]
+                actor = self.actor_handles[i]
+                dof_props = self.gym.get_actor_dof_properties(env, actor)
+                dof_props['friction'] = np.random.uniform(jnt_friction_range[0], jnt_friction_range[1], len(dof_props['friction']))
+                dof_props['damping'] = np.random.uniform(jnt_damping_range[0], jnt_damping_range[1], len(dof_props['damping']))
+                self.gym.set_actor_dof_properties(env, actor, dof_props)
 
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments
