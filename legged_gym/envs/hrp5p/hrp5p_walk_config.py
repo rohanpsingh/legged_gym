@@ -105,8 +105,8 @@ class HRP5PCfg(LeggedRobotCfg):
             ang_vel_z = 0.2
             orient = 0.0
             torque = 0.05
-            base_height = 0.05
-            action_rate = 0.00
+            base_height = 0.025
+            action_rate = 0.025
             upperbody = 0.05
             posture = 0.05
             clock_frc = 0.2
