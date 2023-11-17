@@ -369,7 +369,6 @@ class HRP5P(BaseTask):
         ),dim=-1)
 
         self.obs_buf = torch.cat((robot_state, ext_state), dim=-1)
-        self.obs_buf = (self.obs_buf - self.obs_mean) / self.obs_std
 
         # robot_state = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
         #                        self.base_ang_vel  * self.obs_scales.ang_vel,
@@ -383,6 +382,7 @@ class HRP5P(BaseTask):
         # add noise if needed
         if self.add_noise:
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
+        self.obs_buf = (self.obs_buf - self.obs_mean) / self.obs_std
 
     def create_sim(self):
         """ Creates simulation, terrain and evironments
@@ -644,14 +644,12 @@ class HRP5P(BaseTask):
         noise_vec = torch.zeros_like(self.obs_buf[0])
         self.add_noise = self.cfg.noise.add_noise
         noise_scales = self.cfg.noise.noise_scales
-        noise_level = self.cfg.noise.noise_level
-        noise_vec[:3] = noise_scales.lin_vel * noise_level * self.obs_scales.lin_vel
-        noise_vec[3:6] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
-        noise_vec[6:9] = noise_scales.gravity * noise_level
-        noise_vec[9:12] = 0. # commands
-        noise_vec[12:24] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
-        noise_vec[24:36] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
-        noise_vec[36:48] = 0. # previous actions
+        noise_vec[0] = noise_scales.root_roll
+        noise_vec[1] = noise_scales.root_pitch
+        noise_vec[2:5] = noise_scales.ang_vel
+        noise_vec[5:17] = noise_scales.dof_pos
+        noise_vec[29:41] = noise_scales.dof_vel
+        noise_vec[65:77] = noise_scales.dof_torques
         return noise_vec
 
     #----------------------------------------

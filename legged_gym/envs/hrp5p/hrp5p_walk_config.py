@@ -131,16 +131,15 @@ class HRP5PCfg(LeggedRobotCfg):
         clip_observations = 100.
         clip_actions = 100.
 
-    class noise(LeggedRobotCfg.noise):
+    class noise:
         add_noise = False
-        noise_level = 1.0 # scales other values
         class noise_scales:
-            dof_pos = 0.01
-            dof_vel = 1.5
-            lin_vel = 0.1
-            ang_vel = 0.2
-            gravity = 0.05
-            height_measurements = 0.1
+            root_roll = 0*PI/180
+            root_pitch = 0*PI/180
+            ang_vel = 0.0
+            dof_pos = 0.5*PI/180
+            dof_vel = 5*PI/180
+            dof_torques = 0
 
     class sim(LeggedRobotCfg.sim):
         dt =  0.005
