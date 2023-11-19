@@ -85,6 +85,8 @@ class HRP5P(BaseTask):
 
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
 
+        self.num_unit_obs = int(self.num_obs/self.cfg.env.history_len)
+
         if not self.headless:
             self.set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
 
@@ -230,6 +232,8 @@ class HRP5P(BaseTask):
         self.last_dof_vel[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
+        self.obs_storage[env_ids] = 0
+
         # fill extras
         self.extras["episode"] = {}
         for key in self.episode_sums.keys():
@@ -368,21 +372,17 @@ class HRP5P(BaseTask):
                                  self.torques,
         ),dim=-1)
 
-        self.obs_buf = torch.cat((robot_state, ext_state), dim=-1)
-
-        # robot_state = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
-        #                        self.base_ang_vel  * self.obs_scales.ang_vel,
-        #                        self.projected_gravity,
-        #                        (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
-        #                        self.dof_vel * self.obs_scales.dof_vel,
-        #                        self.actions
-        # ),dim=-1)
-        # self.obs_buf = torch.cat((robot_state, ext_state), dim=-1)
+        current_obs = torch.cat((robot_state, ext_state), dim=-1)
 
         # add noise if needed
         if self.add_noise:
-            self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
-        self.obs_buf = (self.obs_buf - self.obs_mean) / self.obs_std
+            current_obs += (2 * torch.rand_like(current_obs) - 1) * self.noise_scale_vec
+        current_obs = (current_obs - self.obs_mean) / self.obs_std
+
+        self.obs_storage[:, self.num_unit_obs:] = self.obs_storage[:, :-self.num_unit_obs].clone()
+        self.obs_storage[:, :self.num_unit_obs] = current_obs
+
+        self.obs_buf = self.obs_storage
 
     def create_sim(self):
         """ Creates simulation, terrain and evironments
@@ -642,7 +642,7 @@ class HRP5P(BaseTask):
         Returns:
             [torch.Tensor]: Vector of scales used to multiply a uniform distribution in [-1, 1]
         """
-        noise_vec = torch.zeros_like(self.obs_buf[0])
+        noise_vec = torch.zeros(self.num_unit_obs, dtype=torch.float, device=self.device, requires_grad=False)
         self.add_noise = self.cfg.noise.add_noise
         noise_scales = self.cfg.noise.noise_scales
         noise_vec[0] = noise_scales.root_roll
@@ -696,6 +696,7 @@ class HRP5P(BaseTask):
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+        self.obs_storage = torch.zeros((self.num_envs, self.num_obs),  dtype=torch.float, device=self.device)
 
         # joint positions offsets and PD gains
         self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)

@@ -7,7 +7,8 @@ class HRP5PCfg(LeggedRobotCfg):
         #num_envs = 6144
         num_envs = 4096
         #num_envs = 2048
-        num_observations = 83
+        history_len = 1
+        num_observations = 83*history_len
         num_actions = 12
         episode_length_s = 10 # episode length in seconds
 
