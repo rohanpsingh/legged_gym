@@ -142,6 +142,11 @@ class HRP5PCfg(LeggedRobotCfg):
             dof_vel = 5*PI/180
             dof_torques = 0
 
+    class viewer:
+        ref_env = 0
+        pos = [10, 0, 6]  # [m]
+        lookat = [0., 0, 3.]  # [m]
+
     class sim(LeggedRobotCfg.sim):
         dt =  0.005
         substeps = 1
