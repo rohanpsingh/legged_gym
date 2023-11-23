@@ -135,9 +135,9 @@ class HRP5PCfg(LeggedRobotCfg):
     class noise:
         add_noise = False
         class noise_scales:
-            root_roll = 0*PI/180
-            root_pitch = 0*PI/180
-            ang_vel = 0.0
+            root_roll = 3*PI/180
+            root_pitch = 3*PI/180
+            ang_vel = 0.1
             dof_pos = 0.5*PI/180
             dof_vel = 5*PI/180
             dof_torques = 0
