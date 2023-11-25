@@ -147,8 +147,12 @@ class HRP5P(BaseTask):
         self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
         # step physics and render each frame
         self.render()
+
+        applied_actions = self.cfg.control.action_smooth * self.actions + \
+            (1 - self.cfg.control.action_smooth) * self.last_actions
+
         for _ in range(self.cfg.control.decimation):
-            self.torques = self._compute_torques(self.actions).view(self.torques.shape)
+            self.torques = self._compute_torques(applied_actions).view(self.torques.shape)
             self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
             self.gym.simulate(self.sim)
             if self.device == 'cpu':

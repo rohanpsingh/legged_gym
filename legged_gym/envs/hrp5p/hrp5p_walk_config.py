@@ -62,6 +62,8 @@ class HRP5PCfg(LeggedRobotCfg):
         action_scale = 1
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 5
+        # action smoothing: applied_actions = action_smoothing * actions + (1-action_smoothing) * last_actions
+        action_smooth = 0.5
 
     class commands:
         curriculum = False
