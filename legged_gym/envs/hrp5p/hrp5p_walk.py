@@ -105,8 +105,7 @@ class HRP5P(BaseTask):
                                                                                stance_duration,
                                                                                1/self.dt)
         self._period = int(torch.floor(torch.tensor(2*total_duration*(1/self.dt))))
-        self.phases = torch.randint(0, self._period, (self.num_envs,),
-                                    dtype=torch.int, device=self.device, requires_grad=False)
+        self.phases = torch.zeros((self.num_envs,), dtype=torch.int, device=self.device, requires_grad=False)
 
         self._init_buffers()
 
@@ -228,6 +227,9 @@ class HRP5P(BaseTask):
         # reset robot states
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
+
+        # reset phases
+        self.phases[env_ids] = 0
 
         self._resample_commands(env_ids)
 
