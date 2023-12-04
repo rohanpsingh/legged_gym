@@ -96,7 +96,8 @@ class HRP5P(BaseTask):
                              "orient": torch_zeros(), "torques": torch_zeros(), "base_height": torch_zeros(),
                              "action_rate": torch_zeros(), "posture": torch_zeros(),
                              "clock_frc": torch_zeros(), "clock_vel": torch_zeros(),
-                             "upperbody": torch_zeros()}
+                             "upperbody": torch_zeros(), "feet_orient": torch_zeros(),
+        }
 
         total_duration = 1.0
         swing_duration = 0.8
@@ -302,6 +303,25 @@ class HRP5P(BaseTask):
         orient_error = torch.norm(self.projected_gravity[:, :2], dim=1)
         rew_orient = torch.exp(-4*torch.square(orient_error)) * self.rew_scales["orient"]
 
+        # feet orientation penalty
+        lfoot_orient = self.rb_states.view(self.num_envs, self.num_bodies, 13)[:, lfoot_index, 3:7]
+        lfoot_roll, lfoot_pitch = get_euler_xyz(lfoot_orient)[:2]
+        lfoot_roll[lfoot_roll > torch.pi] -= 2*torch.pi
+        lfoot_roll[lfoot_roll < -torch.pi] += 2*torch.pi
+        lfoot_pitch[lfoot_pitch > torch.pi] -= 2*torch.pi
+        lfoot_pitch[lfoot_pitch < -torch.pi] += 2*torch.pi
+
+        rfoot_orient = self.rb_states.view(self.num_envs, self.num_bodies, 13)[:, rfoot_index, 3:7]
+        rfoot_roll, rfoot_pitch = get_euler_xyz(rfoot_orient)[:2]
+        rfoot_roll[rfoot_roll > torch.pi] -= 2*torch.pi
+        rfoot_roll[rfoot_roll < -torch.pi] += 2*torch.pi
+        rfoot_pitch[rfoot_pitch > torch.pi] -= 2*torch.pi
+        rfoot_pitch[rfoot_pitch < -torch.pi] += 2*torch.pi
+        feet_orient = torch.cat((lfoot_roll.unsqueeze(1), lfoot_pitch.unsqueeze(1),
+                                 rfoot_roll.unsqueeze(1), rfoot_pitch.unsqueeze(1)), dim=-1)
+        feet_orient_error = torch.norm(feet_orient, dim=1)
+        rew_feet_orient = torch.exp(-4*torch.square(feet_orient_error)) * self.rew_scales["feet_orient"]
+
         # base height penalty
         height_error = torch.norm(self.root_states[:, 2].unsqueeze(-1) - self.cfg.rewards.base_height_target, dim=1)
         rew_base_height = torch.exp(-0.1*torch.square(height_error)) * self.rew_scales["base_height"]
@@ -336,7 +356,7 @@ class HRP5P(BaseTask):
         # total reward
         self.rew_buf = clock_reward_frc + clock_reward_vel + rew_orient + rew_base_height +\
             rew_torque + rew_action_rate + rew_posture + rew_lin_vel_xy + rew_ang_vel_z +\
-            rew_upperbody
+            rew_upperbody + rew_feet_orient
 
         # log episode reward sums
         self.episode_sums["lin_vel_xy"] += rew_lin_vel_xy
@@ -349,6 +369,7 @@ class HRP5P(BaseTask):
         self.episode_sums["clock_frc"] += clock_reward_frc
         self.episode_sums["clock_vel"] += clock_reward_vel
         self.episode_sums["upperbody"] += rew_upperbody
+        self.episode_sums["feet_orient"] += rew_feet_orient
 
     def compute_observations(self):
         """ Computes observations

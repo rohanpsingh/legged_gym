@@ -118,10 +118,11 @@ class HRP5PCfg(LeggedRobotCfg):
             torque = 0.05
             base_height = 0.025
             action_rate = 0.025
-            upperbody = 0.05
+            upperbody = 0.025
             posture = 0.05
             clock_frc = 0.2
             clock_vel = 0.2
+            feet_orient = 0.025
 
     class normalization(LeggedRobotCfg.normalization):
         class obs_scales:
