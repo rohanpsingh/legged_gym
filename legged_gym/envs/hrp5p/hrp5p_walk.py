@@ -554,15 +554,16 @@ class HRP5P(BaseTask):
         mode2_envs = torch.logical_and(self.modes==2, torch.logical_and(in_ds_envs, _env_ids))
 
         self.commands[mode0_envs, 3] = torch_rand_float(
-            0, 0, (len(self.modes), 1), device=self.device).squeeze(1)[mode0_envs]
+            -1, 1, (len(self.modes), 1), device=self.device).squeeze(1)[mode0_envs]
+
         self.commands[mode1_envs, 3] = torch_rand_float(
             self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(self.modes), 1), device=self.device).squeeze(1)[mode1_envs]
         self.commands[mode2_envs, 3] = torch_rand_float(
             self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(self.modes), 1), device=self.device).squeeze(1)[mode2_envs]
 
         # set small commands to zero
-        self.commands[self.modes==1, 3] *= (torch.norm(self.commands[self.modes==1, 3].unsqueeze(-1), dim=1) > 0.1)
-        self.commands[self.modes==2, 3] *= (torch.norm(self.commands[self.modes==2, 3].unsqueeze(-1), dim=1) > 0.1)
+        # self.commands[self.modes==1, 3] *= (torch.norm(self.commands[self.modes==1, 3].unsqueeze(-1), dim=1) > 0.1)
+        # self.commands[self.modes==2, 3] *= (torch.norm(self.commands[self.modes==2, 3].unsqueeze(-1), dim=1) > 0.1)
         #self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
 
     def _compute_torques(self, actions):
@@ -587,7 +588,8 @@ class HRP5P(BaseTask):
             torques = actions_scaled
         else:
             raise NameError(f"Unknown controller type: {control_type}")
-        return torch.clip(torques, -self.torque_limits, self.torque_limits)
+        #return torch.clip(torques, -self.torque_limits, self.torque_limits)
+        return torques
 
     def _reset_dofs(self, env_ids):
         """ Resets DOF position and velocities of selected environmments
