@@ -841,9 +841,17 @@ class HRP5P(BaseTask):
         start_pose = gymapi.Transform()
         start_pose.p = gymapi.Vec3(*self.base_init_state[:3])
 
-        self.dof_armatures = np.array([
-            0.110084846291, 0.317032732584, 0.317032732584, 1.174334694856, 0.161699903568, 0.112299753167,
-            0.110084846291, 0.317032732584, 0.317032732584, 1.174334694856, 0.161699903568, 0.112299753167])
+        # self.dof_armatures = torch.tensor([
+        #     0.110084846291, 0.317032732584, 0.317032732584, 1.174334694856, 0.161699903568, 0.112299753167,
+        #     0.110084846291, 0.317032732584, 0.317032732584, 1.174334694856, 0.161699903568, 0.112299753167])
+
+        self.dof_armatures = torch.tensor([
+            1.21, 2.79, 2.31, 11.73, 1.83, 1.21,
+            1.21, 2.79, 2.31, 11.73, 1.83, 1.21,])
+
+        self.dof_dampings = torch.tensor([
+            4.19, 4.65, 1.73, 4.60, 1.33, 1.39,
+            4.19, 4.65, 1.73, 4.60, 1.33, 1.39,])
 
         self._get_env_origins()
         env_lower = gymapi.Vec3(0., 0., 0.)
@@ -863,7 +871,10 @@ class HRP5P(BaseTask):
             dof_props = self._process_dof_props(dof_props_asset, i)
 
             # manually set armature values
-            dof_props["armature"] = self.dof_armatures.copy()
+            dof_props["armature"] = self.dof_armatures
+
+            # manually set damping values
+            dof_props["damping"] = self.dof_dampings
 
             self.gym.set_actor_dof_properties(env_handle, actor_handle, dof_props)
             body_props = self.gym.get_actor_rigid_body_properties(env_handle, actor_handle)
