@@ -105,7 +105,7 @@ class HRP5PCfg(LeggedRobotCfg):
         joint_randomization_interval_s = 1
 
     class rewards:
-        soft_dof_pos_limit = 0.95
+        soft_dof_pos_limit = 0.8
         base_height_target = 0.79
         class scales:
             lin_vel_xy = 0.2
@@ -119,6 +119,7 @@ class HRP5PCfg(LeggedRobotCfg):
             clock_frc = 0.2
             clock_vel = 0.2
             feet_orient = 0.025
+            joint_range = 0.0
 
     class normalization(LeggedRobotCfg.normalization):
         class obs_scales:

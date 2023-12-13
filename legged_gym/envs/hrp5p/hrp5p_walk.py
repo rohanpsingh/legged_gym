@@ -97,6 +97,7 @@ class HRP5P(BaseTask):
                              "action_rate": torch_zeros(), "posture": torch_zeros(),
                              "clock_frc": torch_zeros(), "clock_vel": torch_zeros(),
                              "upperbody": torch_zeros(), "feet_orient": torch_zeros(),
+                             "joint_range": torch_zeros(),
         }
 
         total_duration = 1.0
@@ -353,10 +354,18 @@ class HRP5P(BaseTask):
         action_rate_error = torch.norm(self.last_actions - self.actions, dim=1)
         rew_action_rate = torch.exp(-0.1*torch.square(action_rate_error)) * self.rew_scales["action_rate"]
 
+        # joint range penalty
+        current_pose = self.dof_pos[:, :]
+        llimit, ulimit = self.dof_pos_limits.T
+        out_of_llimit = -(self.dof_pos - llimit).clamp(max=0.)
+        out_of_ulimit = (self.dof_pos - ulimit).clamp(min=0.)
+        joint_range_error = torch.sum(out_of_llimit + out_of_ulimit, dim=1)
+        rew_joint_range = torch.exp(-torch.square(joint_range_error)) * self.rew_scales["joint_range"]
+
         # total reward
         self.rew_buf = clock_reward_frc + clock_reward_vel + rew_orient + rew_base_height +\
             rew_torque + rew_action_rate + rew_posture + rew_lin_vel_xy + rew_ang_vel_z +\
-            rew_upperbody + rew_feet_orient
+            rew_upperbody + rew_feet_orient + rew_joint_range
 
         # log episode reward sums
         self.episode_sums["lin_vel_xy"] += rew_lin_vel_xy
@@ -370,6 +379,7 @@ class HRP5P(BaseTask):
         self.episode_sums["clock_vel"] += clock_reward_vel
         self.episode_sums["upperbody"] += rew_upperbody
         self.episode_sums["feet_orient"] += rew_feet_orient
+        self.episode_sums["joint_range"] += rew_joint_range
 
     def compute_observations(self):
         """ Computes observations
