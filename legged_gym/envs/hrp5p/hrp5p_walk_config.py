@@ -106,10 +106,6 @@ class HRP5PCfg(LeggedRobotCfg):
 
     class rewards:
         soft_dof_pos_limit = 0.95
-        soft_dof_vel_limit = 0.9
-        soft_torque_limit = 0.9
-        max_contact_force = 1200.
-        only_positive_rewards = False
         base_height_target = 0.79
         class scales:
             lin_vel_xy = 0.2
