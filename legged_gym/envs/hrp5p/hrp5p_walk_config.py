@@ -8,7 +8,7 @@ class HRP5PCfg(LeggedRobotCfg):
         num_envs = 4096
         #num_envs = 2048
         history_len = 1
-        num_observations = 83*history_len
+        num_observations = 85*history_len
         num_actions = 12
         episode_length_s = 10 # episode length in seconds
 
@@ -68,11 +68,12 @@ class HRP5PCfg(LeggedRobotCfg):
     class commands:
         curriculum = False
         max_curriculum = 1.
-        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+        num_commands = 6 # default: one-hot encode, ang_vel_yaw, lin_vel_x, lin_vel_y
         resampling_time = 4. # time before command are changed[s]
         class ranges:
-            lin_vel_x = [0., 0.4] # min max [m/s]
-            ang_vel_yaw = [-0.3, 0.3]    # min max [rad/s]
+            lin_vel_x = [-0.5, 0.5] # min max [m/s]
+            lin_vel_y = [-0.5, 0.5] # min max [m/s]
+            ang_vel_yaw = [-0.5, 0.5]    # min max [rad/s]
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/hrp5p/mjcf/HRP5Pmain.xml'

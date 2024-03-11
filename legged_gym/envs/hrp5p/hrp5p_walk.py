@@ -126,7 +126,8 @@ class HRP5P(BaseTask):
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0.5, 0.5, 0.5, 0]], dtype=torch.float, device=self.device)
+            0, 0,
+            0.5, 0.5, 0.5, 0, 0, 0]], dtype=torch.float, device=self.device)
 
         self.obs_std = torch.tensor([[
             0.2, 0.2,
@@ -137,7 +138,8 @@ class HRP5P(BaseTask):
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-            1, 1, 1, 1, 1, 1]], dtype=torch.float, device=self.device)
+            1, 1,
+            1, 1, 1, 0.5, 0.5, 0.5]], dtype=torch.float, device=self.device)
 
     def step(self, actions):
         """ Apply actions, simulate, call self.post_physics_step()
@@ -291,7 +293,7 @@ class HRP5P(BaseTask):
         clock_reward_vel[self.modes==0] = ds_vel[self.modes==0]
 
         # linear velocity tracking
-        lin_vel_error = torch.norm(self.commands[:, 3].unsqueeze(-1) - self.base_lin_vel[:, 0].unsqueeze(-1), dim=1)
+        lin_vel_error = torch.norm(self.commands[:, 4:] - self.base_lin_vel[:, :2], dim=1)
         lin_vel_error[self.modes!=2] = torch.norm(self.base_lin_vel[self.modes!=2, 0].unsqueeze(-1), dim=1)
         rew_lin_vel_xy = torch.exp(-4*torch.square(lin_vel_error)) * self.rew_scales["lin_vel_xy"]
 
@@ -387,7 +389,7 @@ class HRP5P(BaseTask):
         clock1 = torch.sin(2 * torch.pi * self.phases / self._period)
         clock2 = torch.cos(2 * torch.pi * self.phases / self._period)
         mode = self.commands[:, :3]
-        mode_ref = self.commands[:, 3].unsqueeze(-1)
+        mode_ref = self.commands[:, 3:]
         ext_state = torch.cat((clock1.unsqueeze(1), clock2.unsqueeze(1), mode, mode_ref), dim=-1)
 
         root_euler = torch_jit_utils.get_euler_xyz(self.base_quat)
@@ -566,10 +568,15 @@ class HRP5P(BaseTask):
         self.commands[mode0_envs, 3] = torch_rand_float(
             -1, 1, (len(self.modes), 1), device=self.device).squeeze(1)[mode0_envs]
 
+        self.commands[mode1_envs, 3:] = torch.zeros((self.num_envs, 3), dtype=torch.float, device=self.device, requires_grad=False)[mode1_envs]
         self.commands[mode1_envs, 3] = torch_rand_float(
             self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(self.modes), 1), device=self.device).squeeze(1)[mode1_envs]
-        self.commands[mode2_envs, 3] = torch_rand_float(
+
+        self.commands[mode2_envs, 3:] = torch.zeros((self.num_envs, 3), dtype=torch.float, device=self.device, requires_grad=False)[mode2_envs]
+        self.commands[mode2_envs, 4] = torch_rand_float(
             self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(self.modes), 1), device=self.device).squeeze(1)[mode2_envs]
+        self.commands[mode2_envs, 5] = torch_rand_float(
+            self.command_ranges["lin_vel_y"][0], self.command_ranges["lin_vel_y"][1], (len(self.modes), 1), device=self.device).squeeze(1)[mode2_envs]
 
         # set small commands to zero
         # self.commands[self.modes==1, 3] *= (torch.norm(self.commands[self.modes==1, 3].unsqueeze(-1), dim=1) > 0.1)
