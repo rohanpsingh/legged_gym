@@ -210,8 +210,15 @@ class HRP5P(BaseTask):
         self.time_out_buf = self.episode_length_buf > self.max_episode_length # no terminal reward for time-outs
         self.height_buf = self.root_states[:, 2] < 0.6
 
+        # lfoot_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], "Lleg_Link5")
+        # lfoot_pos = self.rb_states.view(self.num_envs, self.num_bodies, 13)[:, lfoot_index, 0:3]
+        # rfoot_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], "Rleg_Link5")
+        # rfoot_pos = self.rb_states.view(self.num_envs, self.num_bodies, 13)[:, rfoot_index, 0:3]
+        # self.feet_dist_buf = (torch.norm(lfoot_pos - rfoot_pos, dim=-1) < 0.17)
+
         self.reset_buf |= self.time_out_buf
         self.reset_buf |= self.height_buf
+        # self.reset_buf |= self.feet_dist_buf
 
     def reset_idx(self, env_ids):
         """ Reset some environments.
