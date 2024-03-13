@@ -240,7 +240,7 @@ class HRP5P(BaseTask):
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
 
-        self._resample_commands(env_ids)
+        self._resample_commands(env_ids, forced=True)
 
         # reset buffers
         self.last_actions[env_ids] = 0.
@@ -541,7 +541,7 @@ class HRP5P(BaseTask):
                 dof_props['damping'] = np.random.uniform(jnt_damping_range[0], jnt_damping_range[1], len(dof_props['damping']))
                 self.gym.set_actor_dof_properties(env, actor, dof_props)
 
-    def _resample_commands(self, env_ids):
+    def _resample_commands(self, env_ids, forced=False):
         """ Randommly select commands of some environments
 
         Args:
@@ -554,9 +554,16 @@ class HRP5P(BaseTask):
         _env_ids[env_ids] = True
 
         mode_change_envs = torch.logical_and(in_ds_envs, _env_ids).nonzero(as_tuple=False).flatten()
+        if forced:
+            mode_change_envs = env_ids
 
+        if len(mode_change_envs)==0:
+            return
+
+        # uniformly sampled
         self.modes[mode_change_envs] = torch.randint(
             0, 3, (len(mode_change_envs),), dtype=torch.int64, device=self.device, requires_grad=False)
+
 
         #self.commands[:, :3] = torch.nn.functional.one_hot(self.modes, 3).float()
         mapping = {
